@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Night Browser</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080a0f;
+    --surface: #0d1117;
+    --surface2: #161b22;
+    --border: #21262d;
+    --accent: #58a6ff;
+    --accent2: #3fb950;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --danger: #f85149;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Syne', sans-serif; overflow: hidden; }
+
+  #app { display: flex; flex-direction: column; height: 100vh; }
+
+  /* Header */
+  #header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  #logo {
+    font-size: 15px; font-weight: 800; letter-spacing: 0.05em;
+    color: var(--accent); white-space: nowrap;
+    text-shadow: 0 0 20px rgba(88,166,255,0.4);
+  }
+
+  #nav-btns { display: flex; gap: 4px; }
+  .nav-btn {
+    width: 30px; height: 30px; border-radius: 6px;
+    border: 1px solid var(--border); background: var(--surface2);
+    color: var(--muted); cursor: pointer; font-size: 14px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+  }
+  .nav-btn:hover { background: var(--border); color: var(--text); }
+  .nav-btn:active { transform: scale(0.95); }
+
+  #url-bar {
+    flex: 1; height: 34px; padding: 0 14px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text);
+    font-family: 'Space Mono', monospace; font-size: 12px;
+    outline: none; transition: border-color 0.2s;
+  }
+  #url-bar:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(88,166,255,0.1); }
+  #url-bar::placeholder { color: var(--muted); }
+
+  #go-btn {
+    height: 34px; padding: 0 16px;
+    background: var(--accent); border: none; border-radius: 8px;
+    color: #000; font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700;
+    cursor: pointer; transition: all 0.15s; white-space: nowrap;
+  }
+  #go-btn:hover { background: #79b8ff; transform: translateY(-1px); }
+  #go-btn:active { transform: scale(0.97); }
+
+  /* Tabs */
+  #tabs {
+    display: flex; align-items: center; gap: 4px;
+    padding: 6px 14px 0;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto; flex-shrink: 0;
+  }
+  #tabs::-webkit-scrollbar { height: 3px; }
+  #tabs::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .tab {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 12px; border-radius: 6px 6px 0 0;
+    background: var(--surface2); border: 1px solid var(--border); border-bottom: none;
+    color: var(--muted); font-size: 12px; cursor: pointer;
+    white-space: nowrap; max-width: 160px; min-width: 80px;
+    transition: all 0.15s; position: relative; top: 1px;
+  }
+  .tab.active { background: var(--bg); color: var(--text); border-color: var(--border); }
+  .tab:hover:not(.active) { background: var(--border); }
+  .tab-title { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+  .tab-close {
+    width: 14px; height: 14px; border-radius: 3px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; color: var(--muted); flex-shrink: 0;
+  }
+  .tab-close:hover { background: var(--danger); color: white; }
+
+  #new-tab-btn {
+    width: 26px; height: 26px; border-radius: 6px;
+    border: 1px solid var(--border); background: transparent;
+    color: var(--muted); cursor: pointer; font-size: 16px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s; flex-shrink: 0;
+  }
+  #new-tab-btn:hover { background: var(--surface2); color: var(--text); }
+
+  /* Content */
+  #content { flex: 1; position: relative; overflow: hidden; }
+
+  .frame-container { position: absolute; inset: 0; display: none; }
+  .frame-container.active { display: block; }
+
+  .browser-frame {
+    width: 100%; height: 100%; border: none;
+    allow: "microphone; camera; autoplay; clipboard-write; encrypted-media; fullscreen; display-capture";
+  }
+
+  /* Home screen */
+  #home {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 32px; padding: 40px;
+    background: var(--bg);
+  }
+  #home-logo {
+    font-size: 48px; font-weight: 800; letter-spacing: -0.02em;
+    color: var(--accent); text-shadow: 0 0 60px rgba(88,166,255,0.3);
+    animation: pulse 3s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { text-shadow: 0 0 40px rgba(88,166,255,0.3); }
+    50% { text-shadow: 0 0 80px rgba(88,166,255,0.6); }
+  }
+  #home-sub { color: var(--muted); font-size: 14px; letter-spacing: 0.1em; }
+
+  #quick-links { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+  .quick-link {
+    padding: 10px 20px; border-radius: 8px;
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--muted); font-size: 13px; cursor: pointer;
+    transition: all 0.2s;
+  }
+  .quick-link:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-2px); }
+
+  #blocked-msg {
+    display: none; position: absolute; inset: 0;
+    flex-direction: column; align-items: center; justify-content: center;
+    gap: 16px; background: var(--bg); text-align: center; padding: 40px;
+  }
+  #blocked-msg.show { display: flex; }
+  .blocked-icon { font-size: 48px; }
+  .blocked-title { font-size: 20px; font-weight: 700; color: var(--danger); }
+  .blocked-sub { font-size: 14px; color: var(--muted); max-width: 400px; line-height: 1.6; }
+  .open-btn {
+    padding: 10px 24px; border-radius: 8px;
+    background: var(--accent); border: none; color: #000;
+    font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .open-btn:hover { background: #79b8ff; }
+
+  /* Loading bar */
+  #loading-bar {
+    position: fixed; top: 0; left: 0; height: 2px;
+    background: var(--accent); width: 0%; transition: width 0.3s;
+    z-index: 999; box-shadow: 0 0 8px var(--accent);
+  }
+</style>
+</head>
+<body>
+<div id="loading-bar"></div>
+<div id="app">
+  <div id="header">
+    <div id="logo">⬛ Night</div>
+    <div id="nav-btns">
+      <button class="nav-btn" onclick="goBack()" title="Back">&#8592;</button>
+      <button class="nav-btn" onclick="goForward()" title="Forward">&#8594;</button>
+      <button class="nav-btn" onclick="reloadFrame()" title="Reload">&#8635;</button>
+    </div>
+    <input id="url-bar" type="text" placeholder="Search or enter URL..." />
+    <button id="go-btn" onclick="navigate()">Go</button>
+  </div>
+
+  <div id="tabs">
+    <div class="tab active" id="tab-0" onclick="switchTab(0)">
+      <span class="tab-title">New Tab</span>
+      <span class="tab-close" onclick="closeTab(event, 0)">✕</span>
+    </div>
+    <button id="new-tab-btn" onclick="newTab()" title="New Tab">+</button>
+  </div>
+
+  <div id="content">
+    <div id="home">
+      <div id="home-logo">Night Browser</div>
+      <div id="home-sub">PRIVATE · FAST · YOURS</div>
+      <div id="quick-links">
+        <div class="quick-link" onclick="loadUrl('https://restream.io')">Restream</div>
+        <div class="quick-link" onclick="loadUrl('https://rumble.com')">Rumble</div>
+        <div class="quick-link" onclick="loadUrl('https://www.roblox.com')">Roblox</div>
+        <div class="quick-link" onclick="loadUrl('https://www.youtube.com')">YouTube</div>
+        <div class="quick-link" onclick="loadUrl('https://www.tiktok.com')">TikTok</div>
+        <div class="quick-link" onclick="loadUrl('https://discord.com/app')">Discord</div>
+      </div>
+    </div>
+
+    <div id="blocked-msg">
+      <div class="blocked-icon">🚫</div>
+      <div class="blocked-title">Site blocked iframe</div>
+      <div class="blocked-sub" id="blocked-sub-text">This site doesn't allow embedding. You can still open it in a new tab.</div>
+      <button class="open-btn" id="open-direct-btn">Open in New Tab</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let tabs = [{ url: '', title: 'New Tab', frameId: null }];
+let activeTab = 0;
+let frameCount = 0;
+
+const urlBar = document.getElementById('url-bar');
+const content = document.getElementById('content');
+const home = document.getElementById('home');
+const blockedMsg = document.getElementById('blocked-msg');
+const loadingBar = document.getElementById('loading-bar');
+
+urlBar.addEventListener('keydown', e => { if (e.key === 'Enter') navigate(); });
+
+function showLoading() {
+  loadingBar.style.width = '60%';
+  setTimeout(() => loadingBar.style.width = '90%', 500);
+}
+function doneLoading() {
+  loadingBar.style.width = '100%';
+  setTimeout(() => { loadingBar.style.width = '0%'; }, 300);
+}
+
+function normalizeUrl(u) {
+  u = u.trim();
+  if (!u) return '';
+  if (!/^https?:\/\//i.test(u)) {
+    if (u.includes('.') && !u.includes(' ')) return 'https://' + u;
+    return 'https://www.google.com/search?q=' + encodeURIComponent(u);
+  }
+  return u;
+}
+
+function navigate() {
+  const u = normalizeUrl(urlBar.value);
+  if (u) loadUrl(u);
+}
+
+function loadUrl(url) {
+  urlBar.value = url;
+  tabs[activeTab].url = url;
+  home.style.display = 'none';
+  blockedMsg.classList.remove('show');
+  showLoading();
+
+  // Remove old frame for this tab
+  if (tabs[activeTab].frameId) {
+    const old = document.getElementById(tabs[activeTab].frameId);
+    if (old) old.remove();
+  }
+
+  const frameId = 'frame-' + (++frameCount);
+  tabs[activeTab].frameId = frameId;
+
+  const container = document.createElement('div');
+  container.className = 'frame-container active';
+  container.id = 'container-' + frameId;
+
+  const iframe = document.createElement('iframe');
+  iframe.className = 'browser-frame';
+  iframe.id = frameId;
+  iframe.setAttribute('allow', 'microphone; camera; autoplay; clipboard-write; encrypted-media; fullscreen; display-capture');
+  iframe.setAttribute('allowfullscreen', '');
+  iframe.setAttribute('sandbox', 'allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads');
+  iframe.src = url;
+
+  iframe.onload = () => {
+    doneLoading();
+    try {
+      const t = iframe.contentDocument?.title || new URL(url).hostname;
+      updateTabTitle(activeTab, t);
+    } catch(e) {
+      updateTabTitle(activeTab, new URL(url).hostname);
+    }
+  };
+
+  iframe.onerror = () => showBlocked(url);
+
+  container.appendChild(iframe);
+  content.appendChild(container);
+
+  // Check if blocked after 5s
+  setTimeout(() => {
+    try {
+      const loc = iframe.contentWindow?.location?.href;
+      if (!loc || loc === 'about:blank') showBlocked(url);
+      else doneLoading();
+    } catch(e) {
+      // Cross-origin = likely loaded fine
+      doneLoading();
+    }
+  }, 5000);
+
+  updateTabTitle(activeTab, new URL(url).hostname);
+}
+
+function showBlocked(url) {
+  doneLoading();
+  if (tabs[activeTab].frameId) {
+    const c = document.getElementById('container-' + tabs[activeTab].frameId);
+    if (c) c.style.display = 'none';
+  }
+  document.getElementById('open-direct-btn').onclick = () => window.open(url, '_blank');
+  document.getElementById('blocked-sub-text').textContent = url + ' doesn\'t allow embedding. Open it directly instead.';
+  blockedMsg.classList.add('show');
+}
+
+function updateTabTitle(idx, title) {
+  tabs[idx].title = title;
+  const tab = document.getElementById('tab-' + idx);
+  if (tab) tab.querySelector('.tab-title').textContent = title;
+}
+
+function newTab() {
+  const idx = tabs.length;
+  tabs.push({ url: '', title: 'New Tab', frameId: null });
+  const tabsEl = document.getElementById('tabs');
+  const newTabBtn = document.getElementById('new-tab-btn');
+  const tab = document.createElement('div');
+  tab.className = 'tab';
+  tab.id = 'tab-' + idx;
+  tab.innerHTML = `<span class="tab-title">New Tab</span><span class="tab-close" onclick="closeTab(event,${idx})">✕</span>`;
+  tab.onclick = () => switchTab(idx);
+  tabsEl.insertBefore(tab, newTabBtn);
+  switchTab(idx);
+}
+
+function switchTab(idx) {
+  // Hide all frames
+  document.querySelectorAll('.frame-container').forEach(f => f.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+
+  activeTab = idx;
+  const tab = document.getElementById('tab-' + idx);
+  if (tab) tab.classList.add('active');
+
+  const t = tabs[idx];
+  urlBar.value = t.url || '';
+  blockedMsg.classList.remove('show');
+
+  if (t.frameId) {
+    const container = document.getElementById('container-' + t.frameId);
+    if (container) { container.classList.add('active'); home.style.display = 'none'; }
+    else showHome();
+  } else {
+    showHome();
+  }
+}
+
+function showHome() {
+  home.style.display = 'flex';
+  blockedMsg.classList.remove('show');
+}
+
+function closeTab(e, idx) {
+  e.stopPropagation();
+  if (tabs.length === 1) { tabs[0] = { url: '', title: 'New Tab', frameId: null }; urlBar.value = ''; showHome(); updateTabTitle(0, 'New Tab'); return; }
+  const tab = document.getElementById('tab-' + idx);
+  if (tab) tab.remove();
+  if (tabs[idx].frameId) {
+    const c = document.getElementById('container-' + tabs[idx].frameId);
+    if (c) c.remove();
+  }
+  tabs.splice(idx, 1);
+  // Re-index tabs
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    t.id = 'tab-' + i;
+    t.onclick = () => switchTab(i);
+    const closeBtn = t.querySelector('.tab-close');
+    if (closeBtn) closeBtn.onclick = (e) => closeTab(e, i);
+  });
+  const newIdx = Math.min(idx, tabs.length - 1);
+  switchTab(newIdx);
+}
+
+function goBack() {
+  if (tabs[activeTab].frameId) {
+    const f = document.getElementById(tabs[activeTab].frameId);
+    if (f) try { f.contentWindow.history.back(); } catch(e) {}
+  }
+}
+
+function goForward() {
+  if (tabs[activeTab].frameId) {
+    const f = document.getElementById(tabs[activeTab].frameId);
+    if (f) try { f.contentWindow.history.forward(); } catch(e) {}
+  }
+}
+
+function reloadFrame() {
+  if (tabs[activeTab].url) loadUrl(tabs[activeTab].url);
+}
+</script>
+</body>
+</html>
